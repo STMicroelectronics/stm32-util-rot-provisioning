@@ -16,7 +16,7 @@ import logging
 from helper.workflow.step import Step
 from helper.tools.cube_programmer import CubeProgrammer, CubeProgrammerMode
 from helper.tools.cube_programmer_rdp import CubeProgrammerRDP
-from helper.config.example_config import Example_Config
+from helper.config.example_config import Example_Config, LifecycleType
 from helper.config.memory_config import Memory_Config
 from helper.config.flash_layout_oemirot import FlashLayout_OEMiRoT
 from helper.config.option_bytes import ob_oemirot_apply
@@ -31,10 +31,18 @@ from helper.exception.rot_exception import RoTValueError
 logger = logging.getLogger()
 
 # Metadata for the overall installation step
-installation_step = {
+installation_step_rdp = {
     "id": "installation",
     "name": "Installation",
     "texts": [{"message": "The {board_name} must be in level 0 of Read Out Protection (RDP)"}],
+    "wait_for_input": True,
+    "success": "Successful installation"
+}
+
+installation_step_product = {
+    "id": "installation",
+    "name": "Installation",
+    "texts": [{"message": "The {board_name} must be in OPEN state", "type": "warning"}, {"message": "BOOT0 pin must be set to 0 (button not pressed)", "type": "warning"}],
     "wait_for_input": True,
     "success": "Successful installation"
 }
@@ -52,7 +60,7 @@ installation_substeps = {
     {
         "name": "Installation",
         "wait_for_input": False,
-        "process": "Provisioning starting ...",
+        "process": "Provisioning starts ...",
         "success": "Successful Provisioning"
     },
     "program_ob":
@@ -61,6 +69,14 @@ installation_substeps = {
         "wait_for_input": False,
         "process": "Option Bytes programming starts ...",
         "success": "Successful Option Bytes programming"
+    },
+    "program_obk":
+    {
+        "name": "OBK programming",
+        "texts": [{"message": "BOOT0 pin must be set to 1 (button pressed)", "type": "warning"}],
+        "wait_for_input": True,
+        "process": "OBK programming starts ...",
+        "success": "Successful OBK programming"
     },
     "program_rdp_key":
     {
@@ -88,8 +104,11 @@ class InstallationStep(Step):
         board_name (str): The name of the board being provisioned.
     """
 
-    def __init__(self, board_name: str):
-        super().__init__(installation_step)
+    def __init__(self, board_name: str, lifecycle_type: str):
+        if lifecycle_type == LifecycleType.RDP:
+            super().__init__(installation_step_rdp)
+        else:
+            super().__init__(installation_step_product)
         self.log_param = {"board_name": board_name}
 
 
@@ -137,22 +156,46 @@ class InstallationSubstep(Step):
         self.base = int(self.example_config.get_memory()["base"], 16)
 
     def process_step(self):
-        key_path_bin = extract_output_file_path(self.provisioning_config.get_config_keys_xml_path())
-        config_data_offset = hex(self.base + self.flash_layout.get_flash_layout("FLASH_NVCNT_OFFSET"))
-        key_offset = hex(self.base + self.flash_layout.get_flash_layout("FLASH_KEYS_OFFSET"))
+        if self.example_config.get_option_bytes().get("preflash"):
+            # Applying preflash OB
+            ob_oemirot_apply("preflash", self.example_config, self.flash_layout, self.cube_programmer)
 
-        # Applying preflash OB
-        ob_oemirot_apply("preflash", self.example_config, self.flash_layout, self.cube_programmer)
+        if self.example_config.get_board().get("obk") == False:
+            key_path_bin = extract_output_file_path(self.provisioning_config.get_config_keys_xml_path())
+            config_data_offset = hex(self.base + self.flash_layout.get_flash_layout("FLASH_NVCNT_OFFSET"))
+            key_offset = hex(self.base + self.flash_layout.get_flash_layout("FLASH_KEYS_OFFSET"))
+            # Flash all the binaries
+            self.cube_programmer.flash_binary(self.provisioning_config.get_config_data_path(), config_data_offset)
+            self.cube_programmer.flash_binary(key_path_bin, key_offset)
 
-        # Flash all the binaries
-        self.cube_programmer.flash_binary(self.provisioning_config.get_config_data_path(), config_data_offset)
-        self.cube_programmer.flash_binary(key_path_bin, key_offset)
-        self.cube_programmer.flash_binary(self.appli_config.get_image_binary_path("provisioning"))
-        self.cube_programmer.flash_binary(self.oemirot_config.get_build_binary_path())
         if self.flash_layout.get_flash_layout("DATA_IMAGE_NUMBER") > 0:
             appli_data_path_bin = extract_output_file_path(
                 self.provisioning_config.get_appli_data_xml_path("provisioning"))
             self.cube_programmer.flash_binary(appli_data_path_bin)
+
+        self.cube_programmer.flash_binary(self.appli_config.get_image_binary_path("provisioning"))
+        self.cube_programmer.flash_binary(self.oemirot_config.get_build_binary_path())
+
+
+class OBKProgrammingSubstep(Step):
+    """
+    Represents the substep for flashing OBK binary during the installation process.
+
+    Args:
+        config (Provisioning_Config): The provisioning object to retrieve binary path.
+        cube_programmer (CubeProgrammer): The CubeProgrammer instance for flashing the binaries.
+    """
+
+    def __init__(self, config: Provisioning_Config, cube_programmer: CubeProgrammer):
+        super().__init__(installation_substeps["program_obk"])
+        self.provisioning_config = config
+        self.cube_programmer = cube_programmer
+
+    def process_step(self):
+        key_path_obk = extract_output_file_path(self.provisioning_config.get_config_keys_xml_path())
+        self.cube_programmer.reset()
+        self.cube_programmer.flash_obk(self.provisioning_config.get_config_data_path())
+        self.cube_programmer.flash_obk(key_path_obk)
 
 
 class ProgramOBStep(Step):
@@ -235,14 +278,15 @@ class ProgramFinalRDPLevelStep(Step):
                                               reset=False, mode=CubeProgrammerMode.HOT_PLUG)
 
 
-def SetupInstallationStep(config: Provisioning_Config, stlink_sn: str = None) -> Step:
+def SetupInstallationStep(config: Provisioning_Config, stlink_sn: str = None,
+                          no_obk_provisioning: bool = False) -> Step:
     """
     Set up the installation step by adding all necessary substeps.
 
     Args:
         config (Provisioning_Config): The provisioning configuration object.
         stlink_sn (str, optional): The serial number of the ST-Link device. Defaults to None.
-
+        no_obk_provisioning (bool, optional): Flag to bypass the OBK provisioning step. Defaults to False.
     Returns:
         Step: The fully configured installation step.
     """
@@ -252,10 +296,15 @@ def SetupInstallationStep(config: Provisioning_Config, stlink_sn: str = None) ->
     tools_config = Tools_Config(config.get_tools_bin_env_name())
     cube_programmer = CubeProgrammerRDP(tools_config, stlink_sn=stlink_sn)
     board = example_config.get_board()
-    installation_step = InstallationStep(board_name=board.get("name"))
+    lifecycle = example_config.get_lifecycle_type()
+    installation_step = InstallationStep(board_name=board.get("name"), lifecycle_type=lifecycle)
     installation_step.add_step(RemoveOBStep(example_config, cube_programmer, flash_layout))
-    installation_step.add_step(ProgramRDPKeyStep(config, cube_programmer))
+    if lifecycle == LifecycleType.RDP:
+        installation_step.add_step(ProgramRDPKeyStep(config, cube_programmer))
     installation_step.add_step(InstallationSubstep(config, cube_programmer))
     installation_step.add_step(ProgramOBStep(example_config, cube_programmer, flash_layout))
-    installation_step.add_step(ProgramFinalRDPLevelStep(config, cube_programmer))
+    if not no_obk_provisioning and board.get("obk") == True:
+        installation_step.add_step(OBKProgrammingSubstep(config, cube_programmer))
+    if lifecycle == LifecycleType.RDP:
+        installation_step.add_step(ProgramFinalRDPLevelStep(config, cube_programmer))
     return installation_step

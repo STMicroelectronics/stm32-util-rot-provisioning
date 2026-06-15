@@ -18,7 +18,8 @@ from helper.config.flash_layout_oemirot import FlashLayout_OEMiRoT
 
 
 class Project_Appli(Project_Generic):
-    def __init__(self, config: Appli_Config, logger: ROT_Logger):
+    def __init__(self, project_ini_path: str, logger: ROT_Logger):
+        config = Appli_Config(project_ini_path)
         super().__init__(config, logger, has_postbuild=True, has_prebuild=True)
 
     def _custom_handle_prebuild(self, compiler: str):

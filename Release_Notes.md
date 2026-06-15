@@ -17,6 +17,44 @@ The STM32Cube embedded software offer provides ready-to-use software components 
 # Update history
 
 
+<label for="collapse-section2" aria-hidden="true">__V2.0.1 / 12-June-2026__</label>
+<div>
+
+## Main changes
+
+- Introduced a common project factory to reduce project-specific imports and simplify project handling.
+- Renamed `oemirot/generic_provisioning.py` to `oemirot/provisioning.py`.
+
+## Contents
+
+- Core RoT provisioning logic for memory flash layouts, image preparation, and device configuration.
+- Shared Python scripts used by STM32 RoT examples to run prebuild/postbuild and provisioning flows.
+- Supported RoT example types:
+  - oemirot_dualslot
+  - oemirot_dualslot_hwcrypto
+
+## Known limitations
+
+- None
+
+## Development toolchains and compilers
+
+- None
+
+## Supported devices and boards
+
+- STM32C5xx series.
+
+## Backward compatibility
+
+- None
+
+## Dependencies
+
+- Python 3.10 or later.
+
+</div>
+
 <label for="collapse-section1" aria-hidden="true">__V2.0.0 / 13-March-2026__</label>
 <div>
 

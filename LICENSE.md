@@ -1,4 +1,4 @@
-<!-- License terms for [Ultimate Liberty license (SLA0044)]-->
+<!-- License terms for [Ultimate Liberty license (SLA0044)] -->
 Ultimate Liberty license (SLA0044)
 
 SLA0044 Rev6/October 2025
@@ -93,14 +93,15 @@ PROPERTY RIGHTS OF STMICROELECTRONICS OR ANY THIRD PARTY.
 
 
 <!-- End of License terms -->
+
 <BR>
 <BR>
 
-<!-- Copyrights statements for [RoT_Provisioning]-->
+<!-- Copyrights statements for [RoT_Provisioning] [Ultimate Liberty license (SLA0044)] -->
 Copyrights statements for [RoT_Provisioning]
 
 	Copyright (c) 2026 STMicroelectronics - All rights reserved
-	
+
 	Copyright (c) 2026 STMicroelectronics.
-	
-<!-- End of Copyrights statements for [RoT_Provisioning]-->
+
+<!-- End of Copyrights statements for [RoT_Provisioning] -->

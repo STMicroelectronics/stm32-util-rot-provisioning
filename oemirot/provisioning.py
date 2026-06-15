@@ -41,6 +41,7 @@ class Provisioning():
             - --no-gen Only do the installation of a previously generated configuration.
             - -a/--auto flag for removing the need of user input
             - --stlink-sn to specify the ST-Link serial number to use for provisioning.
+            - --no-obk-provisioning to bypass the OBK provisioning step during installation.
         Returns:
             argparse.ArgumentParser: Configured argument parser for the ROT provisioning.
         """
@@ -55,7 +56,8 @@ class Provisioning():
         parser.add_argument('-r', '--regression', action="store_true", help='Run only regression step')
         parser.add_argument('-wr', '--with-regression', action="store_true",
                             help='Run regression step along with other steps')
-
+        parser.add_argument('--no-obk-provisioning', action="store_true",
+                            help="Bypass the OBK provisioning step during installation (for testing purposes only in OPEN state)")
         parser.add_argument('--stlink-sn', action="store", default=None,
                             help='ST-Link serial number to use for provisioning')
 
@@ -91,7 +93,8 @@ class Provisioning():
             provisioning.add_step(generation_step)
 
         # Process installation step
-        installation_step = SetupInstallationStep(config, stlink_sn=args.stlink_sn)
+        installation_step = SetupInstallationStep(
+            config, stlink_sn=args.stlink_sn, no_obk_provisioning=args.no_obk_provisioning)
         provisioning.add_step(installation_step)
 
         # Execute the provisioning workflow, which includes generation

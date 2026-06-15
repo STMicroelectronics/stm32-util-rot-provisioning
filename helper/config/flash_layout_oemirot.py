@@ -67,13 +67,19 @@ class FlashLayout_OEMiRoT(Generic_FlashLayout):
         rot_code_offset = 0
         rot_code_size = int(self.memory_config.get_oemirot_size(), 16)
 
-        # Calculate the offset for RoT internal handling
-        keys_offset = rot_code_offset + rot_code_size
-        nvcnt_offset = keys_offset + self.memory_block_size
-        hash_ref_offset = nvcnt_offset + self.memory_block_size
-
         # Calculate the size and offset of data and application slots
-        primary_data_slot_offset = hash_ref_offset + self.memory_block_size
+        if self.obk:
+            keys_offset = 0
+            nvcnt_offset = 0
+            hash_ref_offset = 0
+            primary_data_slot_offset = rot_code_offset + rot_code_size
+            end_offset_wrp = primary_data_slot_offset
+        else:
+            keys_offset = rot_code_offset + rot_code_size
+            nvcnt_offset = keys_offset + self.memory_block_size
+            hash_ref_offset = nvcnt_offset + self.memory_block_size
+            primary_data_slot_offset = hash_ref_offset + self.memory_block_size
+            end_offset_wrp = nvcnt_offset
         data_slot_size = self._compute_data_size(self.data_size, self.nb_data_image)
         primary_app_slot_offset = primary_data_slot_offset + data_slot_size
         app_slot_size = self.app_size
@@ -81,7 +87,7 @@ class FlashLayout_OEMiRoT(Generic_FlashLayout):
         secondary_data_slot_offset = secondary_app_slot_offset + app_slot_size
 
         # Compute the end offset for WRP and HDP region for RoT internal handling
-        rot_wrp_end_offset = self._compute_ob_end_offset(nvcnt_offset)
+        rot_wrp_end_offset = self._compute_ob_end_offset(end_offset_wrp)
         rot_hdp_end_offset = self._compute_ob_end_offset(primary_data_slot_offset)
 
         # Compute the offset for Application internal handling

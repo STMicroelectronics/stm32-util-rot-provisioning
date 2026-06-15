@@ -11,7 +11,7 @@
 
 | SW                                | SW Security Level
 |:---------                         |:-------|
-| **RoT_Provisioning**              | Not applicable|
+| **RoT_Provisioning**              | Low|
 
 
 <BR>

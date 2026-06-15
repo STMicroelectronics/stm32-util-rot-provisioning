@@ -21,7 +21,8 @@ from helper.common.update_file_handler import update_define_in_file
 
 
 class Project_OEMiRoT(Project_Generic):
-    def __init__(self, config: OEMiRoT_Config, logger: ROT_Logger):
+    def __init__(self, project_ini_path: str, logger: ROT_Logger):
+        config = OEMiRoT_Config(project_ini_path)
         super().__init__(config, logger, has_postbuild=False, has_prebuild=True)
 
     def _custom_handle_prebuild(self, compiler: str):
@@ -48,9 +49,10 @@ class Project_OEMiRoT(Project_Generic):
         # Updating flash_layout header
         self._update_flash_layout_header_file("FLASH_ROT_CODE_OFFSET")
         self._update_flash_layout_header_file("FLASH_ROT_CODE_SIZE")
-        self._update_flash_layout_header_file("FLASH_KEYS_OFFSET")
-        self._update_flash_layout_header_file("FLASH_NVCNT_OFFSET")
-        self._update_flash_layout_header_file("FLASH_HASH_REF_OFFSET")
+        if not self.example_config.get_board()["obk"]:
+            self._update_flash_layout_header_file("FLASH_KEYS_OFFSET")
+            self._update_flash_layout_header_file("FLASH_NVCNT_OFFSET")
+            self._update_flash_layout_header_file("FLASH_HASH_REF_OFFSET")
         self._update_flash_layout_header_file("FLASH_PRIMARY_DATA_SLOT_OFFSET")
         self._update_flash_layout_header_file("FLASH_PRIMARY_DATA_SLOT_SIZE")
         self._update_flash_layout_header_file("FLASH_PRIMARY_APP_SLOT_OFFSET")

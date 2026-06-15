@@ -72,6 +72,7 @@ class Generic_FlashLayout(metaclass=Singleton):
         self.mcuboot = example_config.get_mcuboot()
 
         self.isolation = example_config.get_general()["isolation"]
+        self.obk = example_config.get_board()["obk"]
 
         self.memory_block_size = int(self.memory_hw["block_size"], 16)
         self.memory_prog_size = int(self.memory_hw["prog_size"], 16)

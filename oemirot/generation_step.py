@@ -21,7 +21,7 @@ from helper.config.oemirot_config import OEMiRoT_Config
 from helper.config.memory_config import Memory_Config
 from helper.config.provisioning_config import Provisioning_Config, RDPLevel
 from helper.config.flash_layout_oemirot import FlashLayout_OEMiRoT
-from helper.config.example_config import Example_Config
+from helper.config.example_config import Example_Config, LifecycleType
 from helper.exception.rot_exception import RoTFatalError, RoTValueError
 
 logger = logging.getLogger()
@@ -117,7 +117,7 @@ key_configuration_substeps = {
             {"message": "From TrustedPackageCreator (OBKey/Data Generation tab in Secure panel)"},
             {"message": "Select {key_config_xml} as the configuration file"},
             {"message": "Default keys must NOT be used in a product. Make sure to regenerate your own keys !", "type": "warning"},
-            {"message": "Update the configuration (if/as needed) then generate the {key_config_output_bin_path} file"}
+            {"message": "Update the configuration (if/as needed) then generate the {key_config_output_path} file"}
         ],
         "wait_for_input": True,
         "skip_if_auto": False,
@@ -317,7 +317,7 @@ class KeyConfigurationStep(Step):
         super().__init__(key_configuration_substeps["key_config"])
         self.key_config_xml = config.get_config_keys_xml_path()
         self.log_param = {'key_config_xml': self.key_config_xml,
-                          'key_config_output_bin_path': extract_output_file_path(self.key_config_xml)}
+                          'key_config_output_path': extract_output_file_path(self.key_config_xml)}
         self.tpc = TPC(Tools_Config(config.get_tools_bin_env_name()))
 
     def process_step(self):
@@ -358,12 +358,14 @@ def SetupGenerationStep(config: Provisioning_Config) -> Step:
     generationStep.add_step(memoryConfigStep)
     key_config_step = KeyConfigurationStep(config)
     generationStep.add_step(key_config_step)
-    generationStep.add_step(SetupRDPConfigurationStep(config))
+    example_config = Example_Config(config.get_example_json_path())
+    if example_config.get_lifecycle_type() == LifecycleType.RDP:
+        generationStep.add_step(SetupRDPConfigurationStep(config))
     generationStep.add_step(BinaryGeneration("OEMiRoT boot binary",
                             oemirot_config.get_build_binary_path()))
     appli_config = Appli_Config(config.get_appli_ini_path())
     generationStep.add_step(BinaryGeneration("Application image", appli_config.get_image_binary_path("provisioning")))
-    memory_config = Memory_Config(config.get_memory_config_ini_path(), Example_Config(config.get_example_json_path()))
+    memory_config = Memory_Config(config.get_memory_config_ini_path(), example_config)
     appli_data_nb = int(memory_config.get_data_image_number(), 16)
     if appli_data_nb > 0:
         generationStep.add_step(SetupAppliDataConfigurationStep(config))
